@@ -10,7 +10,7 @@ export default function GamePage({ session }) {
   const navigate = useNavigate()
 
   useEffect(() => {
-    fetch(`http://localhost:4000/api/games/${id}`)
+    fetch(`${API_BASE}/api/games/${id}`)
       .then(res => res.json())
       .then(data => setGame(data.game))
       .catch(() => alert('Không thể tải thông tin game'))

@@ -56,7 +56,7 @@ export default function Discover({ session }) {
     try {
       setLoading(true)
       const res = await fetch(
-        `http://localhost:4000/api/match/recommendations?userId=${userId}`
+        `${API_BASE}/api/match/recommendations?userId=${userId}`
       )
       const data = await res.json()
       if (data.error) throw new Error(data.error)
@@ -82,7 +82,7 @@ export default function Discover({ session }) {
 
     try {
       // Gọi backend để lưu traits + game_sessions
-      const res = await fetch('http://localhost:4000/api/games/play', {
+      const res = await fetch(`${API_BASE}/api/games/play`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -114,7 +114,7 @@ export default function Discover({ session }) {
   // 🔹 Khi user chơi xong Love Style Game (nút “Đừng click vào đây”)
   const handleLoveGameComplete = async (traits) => {
     try {
-      const res = await fetch('http://localhost:4000/api/games/play', {
+      const res = await fetch(`${API_BASE}/api/games/play`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

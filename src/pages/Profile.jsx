@@ -131,7 +131,7 @@ export default function Profile({ session }) {
   // 🔹 Khi hoàn thành game intro (chỉ cho phép sau khi đã lưu profile)
   const handleIntroGameComplete = async (traits) => {
     try {
-      const res = await fetch('http://localhost:4000/api/games/play', {
+      const res = await fetch(`${API_BASE}/api/games/play`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

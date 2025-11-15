@@ -5,7 +5,7 @@ export default function GameHub() {
   const [games, setGames] = useState([])
 
   useEffect(() => {
-    fetch('http://localhost:4000/api/games')
+    fetch(`${API_BASE}/api/games`)
       .then(res => res.json())
       .then(data => setGames(data.games || []))
       .catch(() => alert('Không thể tải danh sách game 😢'))
