@@ -7,7 +7,7 @@ import ProfileCard from '../components/ProfileCard'
 import MiniGamePopup from '../components/MiniGamePopup'
 import MatchPopup from '../components/MatchPopup'
 import LoveStyleGamePopup from '../components/LoveStyleGamePopup' // 👈 game mới
-
+import { API_BASE } from '../lib/api';
 export default function Discover({ session }) {
   const LIKE_GAME_ID = '00000000-0000-0000-0000-000000000001'
   const LOVE_GAME_ID = '00000000-0000-0000-0000-000000000004'
