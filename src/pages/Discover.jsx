@@ -6,9 +6,8 @@ import { Link } from 'react-router-dom'
 import ProfileCard from '../components/ProfileCard'
 import MiniGamePopup from '../components/MiniGamePopup'
 import MatchPopup from '../components/MatchPopup'
-import LoveStyleGamePopup from '../components/LoveStyleGamePopup'
-import { API_BASE } from '../lib/api'
-
+import LoveStyleGamePopup from '../components/LoveStyleGamePopup' // 👈 game mới
+import { API_BASE } from '../lib/api';
 export default function Discover({ session }) {
   const LIKE_GAME_ID = '00000000-0000-0000-0000-000000000001'
   const LOVE_GAME_ID = '00000000-0000-0000-0000-000000000004'
@@ -27,13 +26,9 @@ export default function Discover({ session }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
 
-  const [savingLikeGame, setSavingLikeGame] = useState(false)
-  const [savingLoveGame, setSavingLoveGame] = useState(false)
-  const [liking, setLiking] = useState(false)
-
   const currentProfile = profiles[currentIndex]
 
-  // 🔹 Kiểm tra đã từng chơi game LIKE chưa
+  // 🔹 Kiểm tra đã từng chơi game LIKE 001 chưa
   useEffect(() => {
     const checkLikeGame = async () => {
       const { data, error } = await supabase
@@ -49,7 +44,7 @@ export default function Discover({ session }) {
       }
 
       if (data && data.length > 0) {
-        setHasPlayedLikeGame(true)
+        setHasPlayedLikeGame(true) // đã từng chơi game 001
       }
     }
 
@@ -59,16 +54,14 @@ export default function Discover({ session }) {
   // 🔹 Fetch danh sách người tương hợp từ backend
   const fetchRecommendations = async () => {
     try {
-      setError(null)
       setLoading(true)
       const res = await fetch(
         `${API_BASE}/api/match/recommendations?userId=${userId}`
       )
       const data = await res.json()
       if (data.error) throw new Error(data.error)
-
       setProfiles(data.results || [])
-      setCurrentIndex(0)
+      setCurrentIndex(0) // reset về người đầu trong list mới
     } catch (err) {
       console.error('❌ Lỗi khi tải gợi ý:', err)
       setError('Không thể tải danh sách người dùng tương hợp 😢')
@@ -86,10 +79,9 @@ export default function Discover({ session }) {
   const handleLikeGameComplete = async (traits) => {
     const current = profiles[currentIndex]
     if (!current) return
-    if (savingLikeGame) return
-    setSavingLikeGame(true)
 
     try {
+      // Gọi backend để lưu traits + game_sessions
       const res = await fetch(`${API_BASE}/api/games/play`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -107,22 +99,20 @@ export default function Discover({ session }) {
       console.log('✅ Game LIKE saved:', result)
       setHasPlayedLikeGame(true)
 
+      // Sau khi lưu → cập nhật lại gợi ý
       await fetchRecommendations()
+
+      // Và like người hiện tại
       await handleLike(current)
       setShowLikeGame(false)
     } catch (err) {
       console.error('❌ Lỗi khi lưu game LIKE:', err)
       alert('Lỗi khi lưu dữ liệu game!')
-    } finally {
-      setSavingLikeGame(false)
     }
   }
 
-  // 🔹 Khi user chơi xong Love Style Game
+  // 🔹 Khi user chơi xong Love Style Game (nút “Đừng click vào đây”)
   const handleLoveGameComplete = async (traits) => {
-    if (savingLoveGame) return
-    setSavingLoveGame(true)
-
     try {
       const res = await fetch(`${API_BASE}/api/games/play`, {
         method: 'POST',
@@ -144,12 +134,11 @@ export default function Discover({ session }) {
       alert('✅ Đã lưu phong cách yêu của bạn, gợi ý sẽ chuẩn hơn nữa!')
       setShowLoveGame(false)
 
+      // traits vừa cập nhật → gọi lại recommendations
       await fetchRecommendations()
     } catch (err) {
       console.error('❌ Lỗi lưu Love Style game:', err)
       alert('Lưu kết quả game thất bại.')
-    } finally {
-      setSavingLoveGame(false)
     }
   }
 
@@ -157,58 +146,53 @@ export default function Discover({ session }) {
   const handleLike = async (targetProfile) => {
     const current = targetProfile || profiles[currentIndex]
     if (!current) return
-    if (liking) return
-    setLiking(true)
 
-    try {
-      const { data: existing } = await supabase
-        .from('likes')
-        .select('*')
-        .eq('from_user', userId)
-        .eq('to_user', current.id)
-        .maybeSingle()
+    // Kiểm tra đã like chưa
+    const { data: existing } = await supabase
+      .from('likes')
+      .select('*')
+      .eq('from_user', userId)
+      .eq('to_user', current.id)
+      .maybeSingle()
 
-      if (existing) {
-        alert('Bạn đã thích người này rồi ❤️')
-        setCurrentIndex(prev => prev + 1)
-        return
-      }
+    if (existing) {
+      alert('Bạn đã thích người này rồi ❤️')
+      setCurrentIndex(prev => prev + 1)
+      return
+    }
 
-      await supabase.from('likes').insert({
-        from_user: userId,
-        to_user: current.id
-      })
+    // Thêm lượt like
+    await supabase.from('likes').insert({
+      from_user: userId,
+      to_user: current.id
+    })
 
-      const { data: reverseLike } = await supabase
-        .from('likes')
-        .select('*')
-        .eq('from_user', current.id)
-        .eq('to_user', userId)
-        .maybeSingle()
+    // Kiểm tra người kia có like lại không
+    const { data: reverseLike } = await supabase
+      .from('likes')
+      .select('*')
+      .eq('from_user', current.id)
+      .eq('to_user', userId)
+      .maybeSingle()
 
-      if (reverseLike) {
-        const { data: newMatch } = await supabase
-          .from('matches')
-          .insert({
-            user_a: userId,
-            user_b: current.id
-          })
-          .select()
-          .single()
-
-        setMatchProfile({
-          id: current.id,
-          name: current.display_name,
-          matchId: newMatch.id
+    if (reverseLike) {
+      const { data: newMatch } = await supabase
+        .from('matches')
+        .insert({
+          user_a: userId,
+          user_b: current.id
         })
-      } else {
-        setCurrentIndex(prev => prev + 1)
-      }
-    } catch (err) {
-      console.error('❌ Lỗi handleLike:', err)
-      alert('Không thể gửi lượt thích, thử lại sau nhé.')
-    } finally {
-      setLiking(false)
+        .select()
+        .single()
+
+      setMatchProfile({
+        id: current.id,
+        name: current.display_name,
+        matchId: newMatch.id
+      })
+    } else {
+      // Nếu chưa match thì sang người tiếp theo
+      setCurrentIndex(prev => prev + 1)
     }
   }
 
@@ -220,79 +204,52 @@ export default function Discover({ session }) {
     trackMouse: true
   })
 
-  // =================== UI LOADING / ERROR ===================
   if (loading) {
     return (
-      <div className="mt-16 flex flex-col items-center justify-center">
-        <div className="w-12 h-12 rounded-full border-4 border-pink-400 border-t-transparent animate-spin mb-3" />
-        <p className="text-pink-500 text-sm animate-pulse">
-          Đang tìm những người hợp gu bạn...
-        </p>
-      </div>
+      <p className="text-center text-gray-500 mt-10">
+        ⏳ Đang tải gợi ý...
+      </p>
     )
   }
 
   if (error) {
     return (
-      <div className="mt-16 text-center">
-        <p className="text-red-500 mb-3">{error}</p>
-        <button
-          onClick={fetchRecommendations}
-          className="px-4 py-2 rounded-xl bg-gradient-to-r from-pink-500 to-purple-500 text-white text-sm shadow-md hover:opacity-90 transition"
-        >
-          Thử tải lại
-        </button>
-      </div>
+      <p className="text-center text-red-500 mt-10">
+        {error}
+      </p>
     )
   }
 
-  // =================== UI CHÍNH ===================
   return (
-    <div className="relative max-w-md mx-auto mt-10 px-2">
-      {/* Glow background */}
-      <div
-        className="pointer-events-none absolute -inset-10 -z-10 opacity-60 blur-3xl"
-        style={{
-          background:
-            'radial-gradient(circle at 0% 0%, rgba(244,114,182,0.6), transparent 55%), radial-gradient(circle at 100% 100%, rgba(129,140,248,0.7), transparent 55%)'
-        }}
-      />
-
-      <motion.h2
-        className="text-2xl font-extrabold text-center mb-2 bg-gradient-to-r from-pink-500 via-rose-500 to-purple-500 bg-clip-text text-transparent drop-shadow-lg"
-        initial={{ y: -10, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-      >
+    <div className="max-w-md mx-auto mt-10 relative">
+      <h2 className="text-xl font-bold text-center mb-6">
         💘 Gợi ý người dùng tương hợp
-      </motion.h2>
-
-      <p className="text-center text-xs text-gray-500 mb-6">
-        Vuốt để khám phá – mỗi lượt thích đều có thể là một câu chuyện mới ✨
-      </p>
+      </h2>
 
       {/* 🔴 Nút troll “Đừng click vào đây” */}
       <button
-        onClick={() => setShowLoveGame(true)}
-        className="
-          absolute -top-3 right-3
-          px-3 py-1.5
-          text-[11px] font-semibold
-          rounded-full
-          bg-gradient-to-r from-pink-500 via-red-500 to-yellow-400
-          text-white
-          shadow-lg shadow-pink-300/50
-          border border-white/40
-          flex items-center gap-1
-          hover:from-yellow-400 hover:via-pink-500 hover:to-red-500
-          hover:shadow-pink-400/70
-          transition-all duration-300
-          hover:scale-110 hover:-translate-y-0.5 hover:rotate-1
-          animate-pulse
-        "
-      >
-        <span className="text-xs">🚫</span>
-        <span>Đừng click vào đây</span>
-      </button>
+  onClick={() => setShowLoveGame(true)}
+  className="
+    absolute -top-4 right-0
+    px-3 py-1.5
+    text-[11px] font-semibold
+    rounded-full
+    bg-gradient-to-r from-pink-500 via-red-500 to-yellow-400
+    text-white
+    shadow-lg shadow-pink-300/50
+    border border-white/40
+    flex items-center gap-1
+    hover:from-yellow-400 hover:via-pink-500 hover:to-red-500
+    hover:shadow-pink-400/70
+    transition-all duration-300
+    hover:scale-110 hover:-translate-y-0.5 hover:rotate-1
+    animate-pulse
+  "
+>
+  <span className="text-xs">🚫</span>
+  <span>Đừng click vào đây</span>
+</button>
+
 
       <AnimatePresence mode="wait">
         {/* Game LIKE lần đầu */}
@@ -304,13 +261,12 @@ export default function Discover({ session }) {
           />
         )}
 
-        {/* Love Style Game */}
+        {/* Love Style Game (nút “đừng click”) */}
         {showLoveGame && (
           <LoveStyleGamePopup
             name={currentProfile?.display_name}
             onComplete={handleLoveGameComplete}
             onCancel={() => setShowLoveGame(false)}
-            saving={savingLoveGame}
           />
         )}
 
@@ -327,39 +283,25 @@ export default function Discover({ session }) {
           <motion.div
             key={currentProfile.id}
             {...swipeHandlers}
-            initial={{ x: 80, opacity: 0, scale: 0.95 }}
-            animate={{ x: 0, opacity: 1, scale: 1 }}
-            exit={{ x: -80, opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.35, ease: 'easeOut' }}
-            className="
-              backdrop-blur-2xl bg-white/70
-              border border-white/60
-              rounded-3xl
-              shadow-[0_18px_45px_rgba(244,114,182,0.45)]
-              p-5
-            "
+            initial={{ x: 300, opacity: 0 }}
+            animate={{ x: 0, opacity: 1 }}
+            exit={{ x: -300, opacity: 0 }}
+            transition={{ duration: 0.4 }}
+            className="bg-white shadow-lg rounded-2xl p-6"
           >
             <ProfileCard profile={currentProfile} currentUserId={userId} />
 
             {currentProfile.compatibility !== undefined && (
-              <div className="mt-4">
-                <p className="text-center text-pink-500 font-semibold text-sm mb-1">
-                  💞 Độ tương hợp: {currentProfile.compatibility}%
-                </p>
-                <div className="w-full h-2 rounded-full bg-pink-100 overflow-hidden">
-                  <div
-                    className="h-full rounded-full bg-gradient-to-r from-pink-500 to-purple-500 transition-all"
-                    style={{ width: `${Math.min(currentProfile.compatibility, 100)}%` }}
-                  />
-                </div>
-              </div>
+              <p className="text-center mt-3 text-pink-600 font-semibold text-lg">
+                💞 Độ tương hợp: {currentProfile.compatibility}%
+              </p>
             )}
 
             <div className="flex justify-between items-center mt-6 gap-2">
               {/* Bỏ qua */}
               <button
                 onClick={() => setCurrentIndex(prev => prev + 1)}
-                className="px-3 py-2 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 text-xs font-medium shadow-sm transition"
+                className="px-3 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 text-sm"
               >
                 ⏭ Bỏ qua
               </button>
@@ -367,7 +309,7 @@ export default function Discover({ session }) {
               {/* Xem hồ sơ */}
               <Link
                 to={`/profile/${currentProfile.id}`}
-                className="flex-1 px-3 py-2 bg-white/80 text-gray-800 rounded-xl hover:bg-white shadow-sm text-center text-xs font-medium transition"
+                className="flex-1 px-3 py-2 bg-gray-100 text-gray-800 rounded-lg hover:bg-gray-200 text-center text-sm"
               >
                 👀 Xem hồ sơ
               </Link>
@@ -378,22 +320,14 @@ export default function Discover({ session }) {
                   if (!currentProfile) return
 
                   if (hasPlayedLikeGame) {
+                    // đã từng chơi game LIKE → like thẳng
                     await handleLike(currentProfile)
                   } else {
+                    // chưa chơi → mở MiniGamePopup
                     setShowLikeGame(true)
                   }
                 }}
-                disabled={liking}
-                className={`
-                  px-4 py-2 rounded-xl text-xs font-semibold text-white 
-                  bg-gradient-to-r from-pink-500 to-rose-500
-                  shadow-md shadow-pink-300/60
-                  hover:shadow-pink-400/80
-                  hover:scale-[1.03]
-                  active:scale-95
-                  transition-all
-                  ${liking ? 'opacity-60 cursor-not-allowed' : ''}
-                `}
+                className="px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600 transition text-sm"
               >
                 ❤️ Thích
               </button>
@@ -402,13 +336,12 @@ export default function Discover({ session }) {
         ) : (
           <motion.p
             key="no-more"
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="text-center text-gray-500 mt-10 text-sm"
+            className="text-center text-gray-500 mt-10"
           >
-            Bạn đã xem hết danh sách gợi ý rồi 😅  
-            Hãy quay lại sau, biết đâu sẽ có thêm người mới ✨
+            Bạn đã xem hết danh sách gợi ý rồi 😅
           </motion.p>
         )}
       </AnimatePresence>
