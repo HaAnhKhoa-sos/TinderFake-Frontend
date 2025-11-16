@@ -289,12 +289,33 @@ export default function Profile({ session }) {
 
       {/* SAVE BUTTON */}
       <button
-        onClick={saveProfile}
-        className="mt-6 w-full py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold shadow-lg hover:opacity-90 transition"
-        disabled={saving}
-      >
-        {saving ? "💾 Đang lưu..." : "💾 Lưu hồ sơ"}
-      </button>
+  onClick={async () => {
+    if (saving) return;      // 🛡 Chặn spam click
+    setSaving(true);         // 🔥 Ẩn nút ngay lập tức
+
+    await saveProfile();     // ⏳ Gọi hàm lưu
+
+    setSaving(false);        // ✔ Hiện lại nút khi lưu xong
+  }}
+  className={`
+    mt-6 w-full py-3 rounded-xl font-bold shadow-lg transition
+    ${saving 
+      ? "bg-gray-300 text-gray-500 cursor-not-allowed" 
+      : "bg-gradient-to-r from-green-500 to-emerald-600 text-white hover:opacity-90"
+    }
+  `}
+  disabled={saving}
+>
+  {saving ? (
+    <span className="flex items-center justify-center gap-2">
+      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></span>
+      Đang lưu...
+    </span>
+  ) : (
+    "💾 Lưu hồ sơ"
+  )}
+</button>
+
 
       {/* Popup game intro */}
       {showIntroGame && (
