@@ -29,7 +29,7 @@ export default function Navbar({ session }) {
                 💘
               </span>
               <span className="text-sm font-semibold text-slate-900">
-                TinderFake
+                DattingApp
               </span>
             </motion.div>
           </div>
@@ -64,7 +64,7 @@ export default function Navbar({ session }) {
             </div>
             <div className="flex flex-col leading-tight">
               <span className="text-sm font-extrabold text-slate-900">
-                TinderFake
+                DattingApp
               </span>
               <span className="text-[10px] text-slate-500 uppercase tracking-[0.16em]">
                 FIND YOUR VIBE
