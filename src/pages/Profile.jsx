@@ -1,70 +1,101 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useState, useRef } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import IntroGamePopup from '../components/IntroGamePopup'
 import { API_BASE } from "../lib/api"
+import { motion } from "framer-motion"
 
 export default function Profile({ session }) {
+
   const user = session.user
 
-  const [profile, setProfile] = useState(null)
+  // ===========================
+  // ⭐ STATE CHÍNH
+  // ===========================
+  const [profile, setProfile] = useState({
+    id: user.id,
+    username: '',
+    display_name: '',
+    bio: '',
+    avatar_url: '',
+    city: '',
+    gender: '',
+    birthday: ''
+  })
+
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
 
-  const [showIntroGame, setShowIntroGame] = useState(false)
-  const [hasPlayedIntro, setHasPlayedIntro] = useState(false)
+  const [hasSavedProfile, setHasSavedProfile] = useState(false)
+  const [hasPlayedGame, setHasPlayedGame] = useState(false)
 
-  // 🔥 1. Load profile + check game_sessions (song song)
+  const [showIntroGame, setShowIntroGame] = useState(false)
+  const savingGameRef = useRef(false) // Fix gửi game 2 lần
+
+  // ===========================
+  // ⭐ LẤY PROFILE + CACHE
+  // ===========================
   useEffect(() => {
     let mounted = true
+    const cacheKey = `profile_${user.id}`
 
-    const loadData = async () => {
-      const profileReq = supabase
+    const cached = localStorage.getItem(cacheKey)
+    if (cached) {
+      try {
+        const parsed = JSON.parse(cached)
+        if (mounted) {
+          setProfile(prev => ({ ...prev, ...parsed }))
+          setHasSavedProfile(true)
+        }
+      } catch {}
+    }
+
+    // Fetch từ DB
+    const fetchProfile = async () => {
+      const { data } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .maybeSingle()
 
-      const gameReq = supabase
-        .from('game_sessions')
-        .select('id')
-        .eq('user_id', user.id)
-        .eq('game_id', '00000000-0000-0000-0000-000000000003') // onboarding game
-        .limit(1)
-
-      const [{ data: prof }, { data: game }] = await Promise.all([profileReq, gameReq])
-
       if (!mounted) return
-
-      // nếu chưa có profile → tạo object mặc định
-      setProfile(
-        prof || {
-          id: user.id,
-          username: "",
-          display_name: "",
-          bio: "",
-          avatar_url: "",
-          city: "",
-          gender: "",
-          birthday: ""
-        }
-      )
-
-      setHasPlayedIntro(game?.length > 0)
+      if (data) {
+        setProfile(prev => ({ ...prev, ...data }))
+        localStorage.setItem(cacheKey, JSON.stringify(data))
+        setHasSavedProfile(true)
+      }
       setLoading(false)
     }
 
-    loadData()
-    return () => (mounted = false)
+    fetchProfile()
+
+    return () => { mounted = false }
   }, [user.id])
 
-  // 🔥 2. Save profile cực nhẹ
+  // ===========================
+  // ⭐ KIỂM TRA ĐÃ CHƠI GAME CHƯA
+  // ===========================
+  useEffect(() => {
+    supabase
+      .from("game_sessions")
+      .select("id")
+      .eq("user_id", user.id)
+      .then(({ data }) => {
+        if (data && data.length > 0) setHasPlayedGame(true)
+      })
+  }, [user.id])
+
+  // ===========================
+  // ⭐ LƯU PROFILE
+  // ===========================
   const saveProfile = async () => {
+    if (saving) return
+    setSaving(true)
+
     if (!profile.username || !profile.display_name) {
-      alert("Vui lòng nhập Username và Tên hiển thị.")
+      alert("Vui lòng nhập username và tên hiển thị!")
+      setSaving(false)
       return
     }
-
-    setSaving(true)
 
     const { data, error } = await supabase
       .from("profiles")
@@ -74,34 +105,27 @@ export default function Profile({ session }) {
 
     setSaving(false)
 
-    if (error) return alert("❌ Lỗi khi lưu hồ sơ: " + error.message)
-
-    setProfile(data)
-    localStorage.setItem(`profile_${user.id}`, JSON.stringify(data))
-
-    alert("✅ Hồ sơ đã được lưu!")
-  }
-
-  // 🔥 3. Upload avatar nhanh - không block UI
-  const handleAvatarUpload = (e) => {
-    const file = e.target.files?.[0]
-    if (!file) return
-
-    const reader = new FileReader()
-    reader.onload = () => {
-      setProfile((p) => ({ ...p, avatar_url: reader.result }))
+    if (error) {
+      alert("❌ Lỗi lưu hồ sơ!")
+      return
     }
-    reader.readAsDataURL(file)
+
+    localStorage.setItem(`profile_${user.id}`, JSON.stringify(data))
+    setHasSavedProfile(true)
+    alert("🎉 Hồ sơ đã lưu thành công!")
   }
 
-  // 🔥 4. Lưu game intro (TỐI ƯU)
-  const handleIntroComplete = async (traits) => {
-    try {
-      // tránh nghẽn sau khi render UI popup
-      await new Promise((r) => setTimeout(r, 250))
+  // ===========================
+  // ⭐ LƯU GAME INTRO
+  // ===========================
+  const handleIntroGameComplete = async (traits) => {
 
+    if (savingGameRef.current) return
+    savingGameRef.current = true
+
+    try {
       const res = await fetch(`${API_BASE}/api/games/play`, {
-        method: "POST",
+        method: 'POST',
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: user.id,
@@ -114,99 +138,172 @@ export default function Profile({ session }) {
       const result = await res.json()
       if (!res.ok) throw new Error(result.error)
 
-      setHasPlayedIntro(true)
+      alert("💖 Đã lưu game giới thiệu – gợi ý sẽ chuẩn hơn!")
+      setHasPlayedGame(true)
       setShowIntroGame(false)
 
-      alert("🎉 Đã lưu dữ liệu game! Gợi ý sẽ chính xác hơn.")
-
-    } catch (err) {
-      console.error("❌ Lỗi lưu game:", err)
-      alert("Lưu kết quả game thất bại.")
+    } catch {
+      alert("❌ Lưu kết quả game thất bại!")
     }
+
+    savingGameRef.current = false
+  }
+
+  // ===========================
+  // ⭐ UPLOAD AVATAR
+  // ===========================
+  const handleAvatarUpload = (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      setProfile(p => ({ ...p, avatar_url: reader.result }))
+    }
+    reader.readAsDataURL(file)
   }
 
   if (loading) {
     return (
-      <div className="max-w-md mx-auto mt-10 text-center text-gray-500">
+      <div className="text-center mt-10 text-gray-500">
         ⏳ Đang tải hồ sơ...
       </div>
     )
   }
 
+  // ===========================
+  // 🌈 UI HIỆU ỨNG LUNG LINH
+  // ===========================
   return (
-    <div className="max-w-md mx-auto mt-10 bg-white shadow-lg p-6 rounded-2xl">
+    <motion.div
+      className="max-w-md mx-auto mt-10 p-6 rounded-3xl shadow-lg relative overflow-hidden"
+      initial={{ opacity: 0, y: 40 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: .5 }}
+      style={{
+        background: "linear-gradient(135deg, #ffe6f2, #fff)",
+        boxShadow: "0 0 30px rgba(255,105,180,0.3)"
+      }}
+    >
 
-      <h2 className="text-xl font-bold mb-4 text-center">🧑 Hồ sơ cá nhân</h2>
+      {/* Glow background */}
+      <div className="absolute inset-0 -z-10 blur-2xl opacity-40"
+        style={{ background: "radial-gradient(circle, #ff7eb3, #ff758c, transparent)" }}
+      />
 
-      {/* 🔥 Chỉ hiện game khi lần đầu & đã có profile */}
-      {!hasPlayedIntro && (
-        <div className="bg-pink-50 p-4 mb-5 rounded-xl border border-pink-200">
-          <p className="font-semibold text-pink-600">
-            🎮 Hãy chơi 1 mini game nhanh!
+      <h2 className="text-2xl font-bold text-center mb-6 text-pink-600 drop-shadow">
+        🌟 Hồ sơ cá nhân 🌟
+      </h2>
+
+      {/* Banner Game */}
+      {hasSavedProfile && !hasPlayedGame && (
+        <motion.div
+          className="mb-5 p-4 rounded-xl bg-white bg-opacity-70 backdrop-blur border border-pink-300 shadow-md"
+          initial={{ opacity: 0, scale: .9 }}
+          animate={{ opacity: 1, scale: 1 }}
+        >
+          <p className="font-semibold text-pink-600 text-center">
+            🎮 Mini Game – Giúp hệ thống hiểu bạn hơn
           </p>
-          <p className="text-sm text-gray-600">
-            Giúp hệ thống hiểu tính cách của bạn để gợi ý chuẩn hơn.
+          <p className="text-sm text-gray-600 text-center mt-1">
+            Trả lời nhanh 3 câu hỏi để cá nhân hoá gợi ý.
           </p>
+
           <button
             onClick={() => setShowIntroGame(true)}
-            className="mt-3 px-4 py-2 bg-pink-500 text-white rounded-lg"
+            className="mt-3 w-full py-2 rounded-lg bg-gradient-to-r from-pink-500 to-rose-500 text-white font-semibold shadow hover:opacity-90 transition"
           >
             Bắt đầu ngay
           </button>
-        </div>
+        </motion.div>
       )}
 
       {/* Avatar */}
       <div className="flex flex-col items-center mb-6">
         <img
           src={profile.avatar_url || "https://placehold.co/100x100?text=Avatar"}
-          className="w-24 h-24 rounded-full object-cover border"
+          className="w-28 h-28 rounded-full border-4 border-pink-300 shadow-xl object-cover"
         />
-        <input type="file" accept="image/*" className="mt-2" onChange={handleAvatarUpload} />
+        <input
+          type="file"
+          className="mt-3 text-sm"
+          accept="image/*"
+          onChange={handleAvatarUpload}
+        />
       </div>
 
-      {/* Form */}
-      <ProfileField label="Tên người dùng" value={profile.username} onChange={(v) => setProfile(p => ({ ...p, username: v }))} />
-      <ProfileField label="Tên hiển thị" value={profile.display_name} onChange={(v) => setProfile(p => ({ ...p, display_name: v }))} />
-      <ProfileField label="Giới thiệu" textarea value={profile.bio} onChange={(v) => setProfile(p => ({ ...p, bio: v }))} />
-      <ProfileField label="Thành phố" value={profile.city} onChange={(v) => setProfile(p => ({ ...p, city: v }))} />
+      {/* INPUT FIELDS */}
+      <div className="space-y-4">
+        {[
+          ["username", "Tên người dùng"],
+          ["display_name", "Tên hiển thị"],
+          ["city", "Thành phố"],
+        ].map(([field, label]) => (
+          <div key={field}>
+            <label className="font-medium">{label}</label>
+            <input
+              className="w-full p-2 mt-1 border rounded-xl shadow-sm"
+              value={profile[field] || ""}
+              onChange={e => setProfile({ ...profile, [field]: e.target.value })}
+            />
+          </div>
+        ))}
 
+        {/* GIỚI TÍNH */}
+        <div>
+          <label className="font-medium">Giới tính</label>
+          <select
+            className="w-full p-2 mt-1 border rounded-xl"
+            value={profile.gender || ""}
+            onChange={e => setProfile({ ...profile, gender: e.target.value })}
+          >
+            <option value="">-- Chọn --</option>
+            <option value="male">Nam</option>
+            <option value="female">Nữ</option>
+            <option value="other">Khác</option>
+          </select>
+        </div>
+
+        {/* NGÀY SINH */}
+        <div>
+          <label className="font-medium">Ngày sinh</label>
+          <input
+            type="date"
+            className="w-full p-2 mt-1 border rounded-xl"
+            value={profile.birthday || ""}
+            onChange={e => setProfile({ ...profile, birthday: e.target.value })}
+          />
+        </div>
+
+        {/* MÔ TẢ */}
+        <div>
+          <label className="font-medium">Giới thiệu</label>
+          <textarea
+            className="w-full p-2 mt-1 border rounded-xl"
+            rows="3"
+            value={profile.bio || ""}
+            onChange={e => setProfile({ ...profile, bio: e.target.value })}
+          />
+        </div>
+      </div>
+
+      {/* SAVE BUTTON */}
       <button
         onClick={saveProfile}
+        className="mt-6 w-full py-3 rounded-xl bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold shadow-lg hover:opacity-90 transition"
         disabled={saving}
-        className="w-full py-2 mt-2 bg-green-600 text-white rounded-lg"
       >
-        {saving ? "💾 Đang lưu..." : "💾 Lưu thông tin"}
+        {saving ? "💾 Đang lưu..." : "💾 Lưu hồ sơ"}
       </button>
 
+      {/* Popup game intro */}
       {showIntroGame && (
         <IntroGamePopup
           name={profile.display_name}
-          onComplete={handleIntroComplete}
+          onComplete={handleIntroGameComplete}
           onCancel={() => setShowIntroGame(false)}
         />
       )}
-
-    </div>
+    </motion.div>
   )
 }
-
-const ProfileField = ({ label, value, onChange, textarea }) => (
-  <div className="mb-4">
-    <label className="block font-medium mb-1">{label}</label>
-    {textarea ? (
-      <textarea
-        value={value || ""}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full p-2 border rounded"
-        rows="3"
-      />
-    ) : (
-      <input
-        value={value || ""}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full p-2 border rounded"
-      />
-    )}
-  </div>
-)
