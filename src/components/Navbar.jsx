@@ -29,7 +29,7 @@ export default function Navbar({ session }) {
                 💘
               </span>
               <span className="text-sm font-semibold text-slate-900">
-                DatingApp
+                TinderFake
               </span>
             </motion.div>
           </div>
@@ -56,15 +56,15 @@ export default function Navbar({ session }) {
         transition={{ duration: 0.35, ease: 'easeOut' }}
         className="fixed top-0 left-0 right-0 bg-white/90 backdrop-blur-xl border-b border-slate-200 shadow-sm"
       >
-        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between">
+        <div className="max-w-3xl mx-auto px-4 py-3 flex items-center justify-between gap-2">
           {/* Logo */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 min-w-0">
             <div className="w-8 h-8 rounded-2xl bg-gradient-to-tr from-pink-500 via-rose-400 to-purple-500 shadow-[0_0_18px_rgba(244,114,182,0.7)] flex items-center justify-center text-sm text-white">
               💘
             </div>
             <div className="flex flex-col leading-tight">
               <span className="text-sm font-extrabold text-slate-900">
-                DatingApp
+                TinderFake
               </span>
               <span className="text-[10px] text-slate-500 uppercase tracking-[0.16em]">
                 FIND YOUR VIBE
@@ -72,12 +72,13 @@ export default function Navbar({ session }) {
             </div>
           </div>
 
-          {/* Menu */}
-          <div className="flex items-center gap-2 text-xs">
+          {/* Menu (responsive) */}
+          <div className="flex items-center gap-1 sm:gap-2 text-[11px] sm:text-xs flex-wrap justify-end">
+            {/* Discover */}
             <Link
               to="/discover"
               className={`
-                px-3 py-1.5 rounded-full
+                px-2.5 sm:px-3 py-1.5 rounded-full
                 flex items-center gap-1
                 transition-all
                 ${
@@ -87,14 +88,16 @@ export default function Navbar({ session }) {
                 }
               `}
             >
-              <span>🔍</span>
-              <span>Discover</span>
+              <span className="text-base sm:text-sm">🔍</span>
+              <span className="hidden sm:inline">Discover</span>
+              <span className="sm:hidden">Tìm</span>
             </Link>
 
+            {/* Matches */}
             <Link
               to="/matches"
               className={`
-                px-3 py-1.5 rounded-full
+                px-2.5 sm:px-3 py-1.5 rounded-full
                 flex items-center gap-1
                 transition-all
                 ${
@@ -104,14 +107,16 @@ export default function Navbar({ session }) {
                 }
               `}
             >
-              <span>❤️</span>
-              <span>Matches</span>
+              <span className="text-base sm:text-sm">❤️</span>
+              <span className="hidden sm:inline">Matches</span>
+              <span className="sm:hidden">Match</span>
             </Link>
 
+            {/* Profile */}
             <Link
               to="/profile"
               className={`
-                px-3 py-1.5 rounded-full
+                px-2.5 sm:px-3 py-1.5 rounded-full
                 flex items-center gap-1
                 transition-all
                 ${
@@ -121,16 +126,17 @@ export default function Navbar({ session }) {
                 }
               `}
             >
-              <span>👤</span>
-              <span>Profile</span>
+              <span className="text-base sm:text-sm">👤</span>
+              <span className="hidden sm:inline">Profile</span>
+              <span className="sm:hidden">Hồ sơ</span>
             </Link>
 
+            {/* Logout luôn hiển thị */}
             <button
               onClick={handleLogout}
               className="
-                ml-1 px-3 py-1.5 rounded-full
+                ml-0 sm:ml-1 px-2.5 sm:px-3 py-1.5 rounded-full
                 flex items-center gap-1
-                text-[11px]
                 bg-rose-50 text-rose-600
                 border border-rose-200
                 hover:bg-rose-100 hover:text-rose-700
@@ -138,8 +144,9 @@ export default function Navbar({ session }) {
                 transition-all
               "
             >
-              <span>🚪</span>
-              <span>Logout</span>
+              <span className="text-base sm:text-sm">🚪</span>
+              <span className="hidden sm:inline">Logout</span>
+              <span className="sm:hidden">Thoát</span>
             </button>
           </div>
         </div>
