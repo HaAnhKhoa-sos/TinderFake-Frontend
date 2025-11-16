@@ -47,7 +47,7 @@ export default function Chat({ session }) {
     fetchOtherProfile()
   }, [otherUserId])
 
-  // 🔹 Check user kia tồn tại + tìm match giữa 2 người
+  // 🔹 Check user kia + tìm match
   useEffect(() => {
     if (!currentUserId || !otherUserId) return
 
@@ -68,7 +68,7 @@ export default function Chat({ session }) {
         return
       }
 
-      // 2. Tìm match giữa 2 người (a-b hoặc b-a)
+      // 2. Tìm match giữa 2 người
       const { data: match, error: matchErr } = await supabase
         .from('matches')
         .select('id, user_a, user_b')
@@ -107,7 +107,7 @@ export default function Chat({ session }) {
         .select('id, match_id, sender_id, content, created_at')
         .eq('match_id', matchId)
         .order('created_at', { ascending: true })
-        .limit(100)
+        .limit(200)
 
       if (error) {
         console.error('Lỗi lấy messages:', error.message)
@@ -136,14 +136,14 @@ export default function Chat({ session }) {
           table: 'messages',
           filter: `match_id=eq.${matchId}`
         },
-       payload => {
-    const newRow = payload.new
-    // 🚫 BỎ QUA tin nhắn chính mình (đã add qua optimistic update)
-    if (newRow.sender_id === currentUserId) return
+        payload => {
+          const newRow = payload.new
+          // 🚫 Bỏ qua tin nhắn chính mình (đã add qua insert)
+          if (newRow.sender_id === currentUserId) return
 
-    console.log('📥 Realtime message (other user):', newRow)
-    setMessages(prev => [...prev, newRow])
-  }
+          console.log('📥 Realtime message (other user):', newRow)
+          setMessages(prev => [...prev, newRow])
+        }
       )
       // nghe cập nhật typing
       .on(
@@ -190,14 +190,14 @@ export default function Chat({ session }) {
     [matchId, currentUserId]
   )
 
-  // 🔹 Gửi tin nhắn (có optimistic update)
+  // 🔹 Gửi tin nhắn (Enter hoặc nút)
   const sendMessage = async () => {
     if (!newMessage.trim() || !matchId) return
+    if (sending) return
 
     const content = newMessage.trim()
     setSending(true)
 
-    // 1. Insert vào messages + lấy lại row vừa insert
     const { data, error: msgErr } = await supabase
       .from('messages')
       .insert({
@@ -215,14 +215,13 @@ export default function Chat({ session }) {
       return
     }
 
-    // 👉 Optimistic: đẩy luôn vào state (nếu realtime chậm)
     if (data) {
       setMessages(prev => [...prev, data])
     }
 
     setNewMessage('')
 
-    // 2. Cập nhật typing = false
+    // set typing = false
     await supabase.from('typing').upsert({
       match_id: matchId,
       user_id: currentUserId,
@@ -230,7 +229,7 @@ export default function Chat({ session }) {
       updated_at: new Date().toISOString()
     })
 
-    // 3. Notification (optional)
+    // Notification (optional)
     try {
       await supabase.from('notifications').insert({
         user_id: otherUserId,
@@ -248,97 +247,190 @@ export default function Chat({ session }) {
     setSending(false)
   }
 
+  const handleKeyDown = (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault()
+      sendMessage()
+    }
+  }
+
   // 🔹 Nếu chưa đăng nhập
   if (!session || !session.user) {
-    return <p className="text-center text-gray-500 mt-10">Bạn chưa đăng nhập.</p>
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <p className="text-center text-sm text-slate-500">
+          Bạn chưa đăng nhập.
+        </p>
+      </div>
+    )
   }
 
   if (loading) {
     return (
-      <div className="max-w-md mx-auto mt-10 bg-white shadow p-4 rounded-2xl text-center text-gray-500">
-        ⏳ Đang tải phòng chat...
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="relative w-full max-w-md">
+          <div className="pointer-events-none absolute -inset-6 blur-3xl opacity-60 bg-gradient-to-br from-pink-400/40 via-purple-400/40 to-sky-400/40" />
+          <div className="relative rounded-3xl bg-slate-900/90 border border-white/10 px-6 py-8 text-center shadow-[0_20px_60px_rgba(15,23,42,0.9)]">
+            <div className="w-10 h-10 mx-auto rounded-full border-2 border-pink-400 border-t-transparent animate-spin mb-3" />
+            <p className="text-[13px] text-slate-200">
+              Đang mở phòng chat cho bạn...
+            </p>
+          </div>
+        </div>
       </div>
     )
   }
 
   if (error) {
     return (
-      <div className="max-w-md mx-auto mt-10 bg-white shadow p-4 rounded-2xl text-center">
-        <p className="text-red-500 mb-3">{error}</p>
-        <Link
-          to="/matches"
-          className="inline-block px-4 py-2 bg-pink-500 text-white rounded-lg hover:bg-pink-600"
-        >
-          🔙 Quay lại danh sách match
-        </Link>
+      <div className="min-h-[60vh] flex items-center justify-center px-4">
+        <div className="relative w-full max-w-md">
+          <div className="pointer-events-none absolute -inset-6 blur-3xl opacity-60 bg-gradient-to-br from-red-400/40 via-pink-400/40 to-orange-400/40" />
+          <div className="relative rounded-3xl bg-slate-900/95 border border-red-400/40 px-6 py-7 text-center shadow-[0_20px_60px_rgba(127,29,29,0.85)]">
+            <p className="text-sm text-red-100 mb-4">{error}</p>
+            <Link
+              to="/matches"
+              className="inline-flex items-center justify-center px-4 py-2.5 rounded-2xl text-xs font-semibold bg-gradient-to-r from-pink-500 via-rose-500 to-orange-400 text-white shadow-[0_12px_32px_rgba(248,113,113,0.9)] hover:translate-y-0.5 active:scale-95 transition-all"
+            >
+              🔙 Quay lại danh sách match
+            </Link>
+          </div>
+        </div>
       </div>
     )
   }
 
   return (
-    <div className="bg-white shadow p-4 rounded-2xl max-w-2xl mx-auto mt-6 flex flex-col h-[80vh]">
-      {/* Header */}
-      <div className="flex items-center gap-3 border-b pb-3 mb-3">
-        <Link to="/matches" className="text-xl">
-          ←
-        </Link>
-        {otherProfile && (
-          <>
-            <img
-              src={
-                otherProfile.avatar_url ||
-                'https://placehold.co/40x40?text=?'
-              }
-              alt={otherProfile.display_name}
-              className="w-9 h-9 rounded-full object-cover border"
-            />
-            <div>
-              <div className="font-semibold">
-                {otherProfile.display_name || 'Người dùng'}
-              </div>
-              <div className="text-xs text-gray-500">
-                💬 Đang trò chuyện
-              </div>
-            </div>
-          </>
-        )}
-      </div>
-
-      {/* Messages */}
-      <div className="flex-1 h-0 overflow-y-auto border rounded p-3 bg-gray-50 mb-4 space-y-2">
-        {messages.map(msg => (
-          <MessageBubble key={msg.id} msg={msg} currentUserId={currentUserId} />
-        ))}
-        {isTyping && (
-          <div className="text-sm text-gray-500 italic">Đang nhắn...</div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
-
-      {/* Input */}
-      <div className="flex gap-2">
-        <input
-          value={newMessage}
-          onChange={e => {
-            setNewMessage(e.target.value)
-            if (e.target.value.trim()) {
-              handleTyping()
-            }
+    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center px-2 py-4">
+      <div className="relative w-full max-w-2xl">
+        {/* Glow nền chat */}
+        <div
+          className="pointer-events-none absolute -inset-8 blur-3xl opacity-70 -z-10"
+          style={{
+            background:
+              'radial-gradient(circle at 0% 0%, rgba(244,114,182,0.65), transparent 55%), radial-gradient(circle at 100% 100%, rgba(59,130,246,0.65), transparent 55%)'
           }}
-          className="flex-1 p-2 border rounded-full text-sm"
-          placeholder="Nhập tin nhắn..."
         />
-        <button
-          onClick={sendMessage}
-          disabled={sending || !newMessage.trim()}
-          className={`px-4 py-2 rounded-full text-white text-sm ${
-            sending || !newMessage.trim()
-              ? 'bg-gray-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700'
-          }`}
-        >
-          Gửi
-        </button>
+
+        {/* Card chat glassmorphism */}
+        <div className="relative flex flex-col h-[72vh] sm:h-[78vh] rounded-3xl bg-slate-950/90 border border-white/10 shadow-[0_22px_70px_rgba(15,23,42,0.95)] overflow-hidden">
+          {/* header */}
+          <div className="flex items-center gap-3 px-4 py-3 border-b border-white/10 bg-gradient-to-r from-slate-950/95 via-slate-900/95 to-slate-950/95">
+            <Link
+              to="/matches"
+              className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-900/80 border border-slate-600/70 text-slate-200 text-lg hover:border-pink-400 hover:text-pink-300 hover:scale-105 transition-all"
+            >
+              ←
+            </Link>
+
+            {otherProfile && (
+              <div className="flex items-center gap-3">
+                <div className="relative">
+                  <div className="w-10 h-10 rounded-full p-[2px] bg-gradient-to-tr from-pink-400 via-purple-400 to-sky-400">
+                    <img
+                      src={
+                        otherProfile.avatar_url ||
+                        'https://placehold.co/80x80?text=?'
+                      }
+                      alt={otherProfile.display_name}
+                      className="w-full h-full rounded-full object-cover border border-slate-900"
+                    />
+                  </div>
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 rounded-full border border-slate-900 shadow-[0_0_12px_rgba(52,211,153,0.9)]" />
+                </div>
+
+                <div className="flex flex-col">
+                  <span className="text-sm font-semibold text-slate-50 leading-tight">
+                    {otherProfile.display_name || 'Người dùng'}
+                  </span>
+                  <span className="text-[11px] text-slate-400">
+                    💬 Đang trò chuyện với bạn
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* messages */}
+          <div className="flex-1 h-0 overflow-y-auto px-3 sm:px-4 py-3 space-y-2 bg-gradient-to-b from-slate-950/90 via-slate-950/95 to-slate-950/98">
+            {messages.map(msg => (
+              <MessageBubble key={msg.id} msg={msg} currentUserId={currentUserId} />
+            ))}
+
+            {isTyping && (
+              <div className="flex items-center gap-2 text-[11px] text-slate-400 italic pl-1">
+                <span className="w-2 h-2 rounded-full bg-slate-500 animate-bounce" />
+                <span>Đang nhắn...</span>
+              </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* input */}
+          <div className="border-t border-white/10 bg-slate-950/95 px-3 sm:px-4 py-3">
+            <div className="flex items-end gap-2">
+              <div className="flex-1">
+                <div className="relative">
+                  <input
+                    value={newMessage}
+                    onChange={e => {
+                      setNewMessage(e.target.value)
+                      if (e.target.value.trim()) {
+                        handleTyping()
+                      }
+                    }}
+                    onKeyDown={handleKeyDown}
+                    className="
+                      w-full
+                      rounded-2xl
+                      bg-slate-900/80
+                      border border-slate-700
+                      px-3.5 py-2.5
+                      text-sm
+                      text-slate-50
+                      placeholder:text-slate-500
+                      outline-none
+                      focus:border-pink-400/90
+                      focus:ring-2 focus:ring-pink-500/60
+                      shadow-[0_10px_30px_rgba(15,23,42,0.9)]
+                      transition-all
+                    "
+                    placeholder="Nhập tin nhắn ngọt ngào của bạn..."
+                  />
+                  <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[10px] text-slate-500">
+                    Nhấn Enter để gửi
+                  </div>
+                </div>
+              </div>
+
+              <button
+                onClick={sendMessage}
+                disabled={sending || !newMessage.trim()}
+                className={`
+                  inline-flex items-center justify-center
+                  px-4 py-2.5
+                  rounded-2xl
+                  text-[12px] font-semibold
+                  text-white
+                  bg-gradient-to-r from-pink-500 via-rose-500 to-purple-500
+                  shadow-[0_12px_34px_rgba(236,72,153,0.9)]
+                  hover:shadow-[0_16px_42px_rgba(236,72,153,1)]
+                  hover:translate-y-0.5
+                  active:scale-95
+                  transition-all
+                  ${
+                    sending || !newMessage.trim()
+                      ? 'opacity-50 cursor-not-allowed hover:translate-y-0 hover:shadow-none'
+                      : ''
+                  }
+                `}
+              >
+                {sending ? 'Đang gửi…' : 'Gửi 💌'}
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   )
