@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react'
 import { supabase } from '../lib/supabaseClient'
 import IntroGamePopup from '../components/IntroGamePopup' // 👈 game onboarding
-
+import { API_BASE } from "../lib/api"
 export default function Profile({ session }) {
   const user = session.user
   const [profile, setProfile] = useState({
