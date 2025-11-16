@@ -5,6 +5,7 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
   const [step, setStep] = useState(0)
   const [answers, setAnswers] = useState({})
   const [finished, setFinished] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false) // 👈 chống double-click
 
   const questions = [
     {
@@ -37,7 +38,7 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
   ]
 
   const handleSelect = (value) => {
-    setAnswers({ ...answers, [step]: value })
+    setAnswers(prev => ({ ...prev, [step]: value }))
   }
 
   const handleNext = () => {
@@ -49,14 +50,23 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
     }
   }
 
-  const handleFinish = () => {
+  const handleFinish = async () => {
+    if (isSubmitting) return // 👈 đang gửi thì bỏ qua click tiếp theo
+
     const traits = {
       personality_type: answers[0],
       love_priority: answers[1],
       date_style: answers[2],
-      intro_score: 80 // ví dụ, bạn muốn có thể tính phức tạp hơn
+      intro_score: 80 // tuỳ bạn sau này tính phức tạp hơn
     }
-    onComplete(traits)
+
+    try {
+      setIsSubmitting(true)
+      // Hỗ trợ onComplete async hoặc sync
+      await Promise.resolve(onComplete(traits))
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -68,12 +78,13 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
     >
       <motion.div
         className="bg-white p-6 rounded-2xl shadow-xl max-w-sm w-full text-center relative"
-        initial={{ scale: 0.9 }}
-        animate={{ scale: 1 }}
+        initial={{ scale: 0.9, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
       >
         <button
           onClick={onCancel}
           className="absolute top-3 right-4 text-gray-400 hover:text-gray-700"
+          disabled={isSubmitting}
         >
           ✖
         </button>
@@ -121,9 +132,12 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
             </p>
             <button
               onClick={handleFinish}
-              className="bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 transition"
+              disabled={isSubmitting}
+              className={`bg-pink-500 text-white px-4 py-2 rounded-lg hover:bg-pink-600 transition ${
+                isSubmitting ? 'opacity-60 cursor-not-allowed' : ''
+              }`}
             >
-              Lưu thông tin & tiếp tục
+              {isSubmitting ? 'Đang lưu...' : 'Lưu thông tin & tiếp tục'}
             </button>
           </>
         )}
