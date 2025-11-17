@@ -36,6 +36,8 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
     }
   }
 
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
   const questions = [
     {
       id: 'personality',
@@ -122,7 +124,7 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
   const progressPercent = ((step + (finished ? 1 : 0)) / totalSteps) * 100
 
   const handleSelect = (value) => {
-    setAnswers(prev => ({
+    setAnswers((prev) => ({
       ...prev,
       [currentQuestion.traitKey]: value
     }))
@@ -153,13 +155,16 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
       intro_score: 80
     }
 
-    setTimeout(async () => {
     try {
+      setIsSubmitting(true)
+      // 🔊 phát âm complete
+      playSound('complete')
+      // cho tiếng kêu vang ~0.4s rồi mới onComplete (để tránh unmount sớm)
+      await sleep(400)
       await Promise.resolve(onComplete(traits))
     } finally {
       setIsSubmitting(false)
     }
-  }, 400)
   }
 
   return (
@@ -382,30 +387,35 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
       </motion.div>
 
       {/* 👇 3 audio element thực tế trong DOM */}
-{/* 👇 3 audio element thực tế trong DOM */}
-<audio
-  ref={selectAudioRef}
-  preload="auto"
-  onError={() => console.log('Lỗi load selectSound', selectAudioRef.current?.error)}
->
-  <source src={selectSound} type="audio/mpeg" />
-</audio>
+      <audio
+        ref={selectAudioRef}
+        preload="auto"
+        onError={() =>
+          console.log('Lỗi load selectSound', selectAudioRef.current?.error)
+        }
+      >
+        <source src={selectSound} type="audio/mpeg" />
+      </audio>
 
-<audio
-  ref={nextAudioRef}
-  preload="auto"
-  onError={() => console.log('Lỗi load nextSound', nextAudioRef.current?.error)}
->
-  <source src={nextSound} type="audio/mpeg" />
-</audio>
+      <audio
+        ref={nextAudioRef}
+        preload="auto"
+        onError={() =>
+          console.log('Lỗi load nextSound', nextAudioRef.current?.error)
+        }
+      >
+        <source src={nextSound} type="audio/mpeg" />
+      </audio>
 
-<audio
-  ref={completeAudioRef}
-  preload="auto"
-  onError={() => console.log('Lỗi load completeSound', completeAudioRef.current?.error)}
->
-  <source src={completeSound} type="audio/mpeg" />
-</audio>
+      <audio
+        ref={completeAudioRef}
+        preload="auto"
+        onError={() =>
+          console.log('Lỗi load completeSound', completeAudioRef.current?.error)
+        }
+      >
+        <source src={completeSound} type="audio/mpeg" />
+      </audio>
     </motion.div>
   )
 }
