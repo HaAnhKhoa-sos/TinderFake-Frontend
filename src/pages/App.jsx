@@ -15,7 +15,7 @@ import PublicProfile from './PublicProfile'
 import Maintenance from './Maintenance'
 
 // ⚙️ Bật/tắt chế độ bảo trì
-const isMaintenanceMode = false
+const isMaintenanceMode = true
 
 export default function App() {
   const [session, setSession] = useState(null)
@@ -107,3 +107,4 @@ export default function App() {
     </div>
   )
 }
+ 
