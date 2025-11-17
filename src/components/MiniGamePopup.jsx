@@ -1,10 +1,39 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import selectSound from '../assets/sounds/select.mp3'
+import completeSound from '../assets/sounds/complete.mp3'
 
 export default function MiniGamePopup({ onComplete, onCancel, name }) {
   const [step, setStep] = useState(0)
   const [answers, setAnswers] = useState({})
   const [finished, setFinished] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  const selectAudioRef = useRef(null)
+  const completeAudioRef = useRef(null)
+  const submittingRef = useRef(false) // lock chống double click
+
+  const playSound = (type) => {
+    try {
+      let audio
+      if (type === 'select') audio = selectAudioRef.current
+      else if (type === 'complete') audio = completeAudioRef.current
+
+      if (!audio) return
+
+      audio.currentTime = 0
+      const p = audio.play()
+      if (p && typeof p.then === 'function') {
+        p.catch((err) => {
+          console.warn('⚠️ Audio play error:', err)
+        })
+      }
+    } catch (e) {
+      console.warn('⚠️ Audio error:', e)
+    }
+  }
+
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
   // 🎨 Bộ câu hỏi có hình ảnh minh họa (có thể đổi link ảnh theo ý bạn)
   const questions = [
@@ -74,10 +103,26 @@ export default function MiniGamePopup({ onComplete, onCancel, name }) {
   ]
 
   const handleSelect = (value) => {
-    setAnswers({ ...answers, [questions[step].id]: value })
+    const currentId = questions[step].id
+
+    setAnswers((prev) => ({
+      ...prev,
+      [currentId]: value
+    }))
+
+    // 🔊 âm khi chọn
+    playSound('select')
+
+    // auto next sau 250ms
     setTimeout(() => {
-      if (step < questions.length - 1) setStep(step + 1)
-      else handleFinish()
+      setStep((prev) => {
+        if (prev < questions.length - 1) {
+          return prev + 1
+        } else {
+          handleFinish()
+          return prev
+        }
+      })
     }, 250)
   }
 
@@ -85,14 +130,26 @@ export default function MiniGamePopup({ onComplete, onCancel, name }) {
     setFinished(true)
   }
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
+    if (submittingRef.current || isSubmitting) return
+    submittingRef.current = true
+
     const traits = {
       favorite_activity: answers.activity,
       favorite_music: answers.music,
       favorite_travel: answers.travel,
       compatibility_score: 1 // backend sẽ tính thật
     }
-    onComplete(traits)
+
+    try {
+      setIsSubmitting(true)
+      playSound('complete')
+      await sleep(400) // cho âm complete kêu xíu rồi mới gọi backend
+      await Promise.resolve(onComplete(traits))
+    } finally {
+      submittingRef.current = false
+      setIsSubmitting(false)
+    }
   }
 
   return (
@@ -132,7 +189,7 @@ export default function MiniGamePopup({ onComplete, onCancel, name }) {
             </h3>
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {questions[step].options.map(opt => (
+              {questions[step].options.map((opt) => (
                 <motion.div
                   key={opt.value}
                   className={`
@@ -181,13 +238,28 @@ export default function MiniGamePopup({ onComplete, onCancel, name }) {
             </p>
             <button
               onClick={handleComplete}
-              className="px-6 py-3 bg-pink-500 text-white rounded-full hover:bg-pink-600 font-semibold transition shadow-lg shadow-pink-300/70"
+              disabled={isSubmitting}
+              className={`
+                px-6 py-3 bg-pink-500 text-white rounded-full 
+                hover:bg-pink-600 font-semibold transition 
+                shadow-lg shadow-pink-300/70
+                ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}
+              `}
             >
-              Xác nhận & Thích ❤️
+              {isSubmitting ? 'Đang xử lý...' : 'Xác nhận & Thích ❤️'}
             </button>
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Audio elements */}
+      <audio ref={selectAudioRef} preload="auto">
+        <source src={selectSound} type="audio/mpeg" />
+      </audio>
+
+      <audio ref={completeAudioRef} preload="auto">
+        <source src={completeSound} type="audio/mpeg" />
+      </audio>
     </motion.div>
   )
 }
