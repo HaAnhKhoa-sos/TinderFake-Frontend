@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react'
+import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export default function IntroGamePopup({ onComplete, onCancel, name }) {
@@ -7,32 +7,32 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
   const [finished, setFinished] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // 🔊 refs âm thanh
-  const selectSoundRef = useRef(null)
-  const nextSoundRef = useRef(null)
-  const completeSoundRef = useRef(null)
+  // 🔊 refs audio gắn trực tiếp vào DOM
+  const selectAudioRef = useRef(null)
+  const nextAudioRef = useRef(null)
+  const completeAudioRef = useRef(null)
 
-  useEffect(() => {
-    // các file này bạn đặt trong thư mục public/sounds
-    selectSoundRef.current = new Audio('/sounds/select.mp3')
-    nextSoundRef.current = new Audio('/sounds/next.mp3')
-    completeSoundRef.current = new Audio('/sounds/complete.mp3')
-  }, [])
-
-  const playSound = (ref) => {
+  const playSound = (type) => {
     try {
-      if (ref.current) {
-        // reset về đầu để click liên tục vẫn nghe rõ
-        ref.current.currentTime = 0
-        ref.current.play().catch(() => {})
+      let audio
+      if (type === 'select') audio = selectAudioRef.current
+      else if (type === 'next') audio = nextAudioRef.current
+      else if (type === 'complete') audio = completeAudioRef.current
+
+      if (!audio) return
+
+      audio.currentTime = 0
+      const p = audio.play()
+      if (p && typeof p.then === 'function') {
+        p.catch((err) => {
+          console.warn('⚠️ Audio play bị chặn / lỗi:', err)
+        })
       }
     } catch (e) {
-      // tránh crash nếu lỗi audio
-      console.warn('Audio play error:', e)
+      console.warn('⚠️ Audio error:', e)
     }
   }
 
-  // 🧠 Bộ câu hỏi game
   const questions = [
     {
       id: 'personality',
@@ -118,13 +118,12 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
   const currentQuestion = questions[step]
   const progressPercent = ((step + (finished ? 1 : 0)) / totalSteps) * 100
 
-  // 🔹 chọn 1 option
   const handleSelect = (value) => {
     setAnswers(prev => ({
       ...prev,
       [currentQuestion.traitKey]: value
     }))
-    playSound(selectSoundRef)
+    playSound('select')
   }
 
   const handleNext = () => {
@@ -132,7 +131,7 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
       alert('Hãy chọn một đáp án trước khi tiếp tục nhé 💬')
       return
     }
-    playSound(nextSoundRef)
+    playSound('next')
 
     if (step < totalSteps - 1) {
       setStep(step + 1)
@@ -153,7 +152,7 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
 
     try {
       setIsSubmitting(true)
-      playSound(completeSoundRef)
+      playSound('complete')
       await Promise.resolve(onComplete(traits))
     } finally {
       setIsSubmitting(false)
@@ -378,6 +377,11 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
           </AnimatePresence>
         </div>
       </motion.div>
+
+      {/* 👇 3 audio element thực tế trong DOM */}
+      <audio ref={selectAudioRef} src="/sounds/select.mp3" preload="auto" />
+      <audio ref={nextAudioRef} src="/sounds/next.mp3" preload="auto" />
+      <audio ref={completeAudioRef} src="/sounds/complete.mp3" preload="auto" />
     </motion.div>
   )
 }
