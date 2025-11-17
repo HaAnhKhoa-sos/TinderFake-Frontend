@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import selectSound from '@/assets/sounds/select.mp3'
-import nextSound from '@/assets/sounds/next.mp3'
-import completeSound from '@/assets/sounds/complete.mp3'
+import selectSound from '../assets/sounds/select.mp3'
+import nextSound from '../assets/sounds/next.mp3'
+import completeSound from '../assets/sounds/complete.mp3'
 
 export default function IntroGamePopup({ onComplete, onCancel, name }) {
   const [step, setStep] = useState(0)
