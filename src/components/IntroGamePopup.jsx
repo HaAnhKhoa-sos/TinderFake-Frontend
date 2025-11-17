@@ -1,5 +1,8 @@
 import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import selectSound from '@/assets/sounds/select.mp3'
+import nextSound from '@/assets/sounds/next.mp3'
+import completeSound from '@/assets/sounds/complete.mp3'
 
 export default function IntroGamePopup({ onComplete, onCancel, name }) {
   const [step, setStep] = useState(0)
@@ -379,30 +382,29 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
       </motion.div>
 
       {/* 👇 3 audio element thực tế trong DOM */}
+{/* 👇 3 audio element thực tế trong DOM */}
 <audio
   ref={selectAudioRef}
   preload="auto"
-  onError={() => console.log('Lỗi load select.mp3', selectAudioRef.current?.error)}
+  onError={() => console.log('Lỗi load selectSound', selectAudioRef.current?.error)}
 >
-  <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3" type="audio/mpeg" />
+  <source src={selectSound} type="audio/mpeg" />
 </audio>
 
 <audio
   ref={nextAudioRef}
   preload="auto"
-  onError={() => console.log('Lỗi load next.mp3', nextAudioRef.current?.error)}
+  onError={() => console.log('Lỗi load nextSound', nextAudioRef.current?.error)}
 >
-  <source src="/sounds/next.mp3" type="audio/mpeg" />
+  <source src={nextSound} type="audio/mpeg" />
 </audio>
 
 <audio
   ref={completeAudioRef}
   preload="auto"
-  onError={() =>
-    console.log('Lỗi load complete.mp3', completeAudioRef.current?.error)
-  }
+  onError={() => console.log('Lỗi load completeSound', completeAudioRef.current?.error)}
 >
-  <source src="/sounds/complete.mp3" type="audio/mpeg" />
+  <source src={completeSound} type="audio/mpeg" />
 </audio>
     </motion.div>
   )
