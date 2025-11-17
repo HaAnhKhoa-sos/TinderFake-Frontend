@@ -1,5 +1,7 @@
-import React, { useState } from 'react'
+import React, { useState, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
+import selectSound from '../assets/sounds/select.mp3'
+import completeSound from '../assets/sounds/complete.mp3'
 
 /**
  * props:
@@ -11,6 +13,33 @@ export default function LoveStyleGamePopup({ onComplete, onCancel, name }) {
   const [answers, setAnswers] = useState({})
   const [finished, setFinished] = useState(false)
   const [score, setScore] = useState(0)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+
+  // audio refs
+  const selectAudioRef = useRef(null)
+  const completeAudioRef = useRef(null)
+  const submittingRef = useRef(false) // lock chống double submit
+
+  const playSound = (type) => {
+    try {
+      let audio
+      if (type === 'select') audio = selectAudioRef.current
+      else if (type === 'complete') audio = completeAudioRef.current
+
+      if (!audio) return
+      audio.currentTime = 0
+      const p = audio.play()
+      if (p && typeof p.then === 'function') {
+        p.catch((err) => {
+          console.warn('⚠️ Audio play error:', err)
+        })
+      }
+    } catch (e) {
+      console.warn('⚠️ Audio error:', e)
+    }
+  }
+
+  const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
   const steps = [
     {
@@ -142,124 +171,204 @@ export default function LoveStyleGamePopup({ onComplete, onCancel, name }) {
 
   const currentStep = steps[stepIndex]
 
+  // chọn xong → play select → auto sang câu tiếp theo sau 350ms
   const handleSelect = (traitKey, value) => {
     setAnswers(prev => ({ ...prev, [traitKey]: value }))
-  }
+    playSound('select')
 
-  const handleNext = () => {
-    if (!answers[currentStep.id]) {
-      alert('Hãy chọn 1 lựa chọn nhé 💖')
-      return
-    }
+    const isLastStep = stepIndex === steps.length - 1
 
-    if (stepIndex < steps.length - 1) {
-      setStepIndex(stepIndex + 1)
+    if (!isLastStep) {
+      setTimeout(() => {
+        setStepIndex(prev => Math.min(prev + 1, steps.length - 1))
+      }, 350)
     } else {
-      // Hoàn tất → tính score
-      handleFinish()
+      setTimeout(() => {
+        handleFinish()
+      }, 350)
     }
   }
 
   const handleFinish = () => {
-    // Ví dụ: mỗi câu trả lời = 20 điểm, tối đa 100
     const answeredCount = Object.keys(answers).length
     const baseScore = Math.min(100, answeredCount * 20)
     setScore(baseScore)
     setFinished(true)
   }
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
+    if (submittingRef.current || isSubmitting) return
+    submittingRef.current = true
+
     const traits = {
       ...answers,
       love_style_score: score
     }
-    onComplete(traits)
+
+    try {
+      setIsSubmitting(true)
+      playSound('complete')
+      await sleep(400) // cho âm complete vang chút rồi mới onComplete
+      await Promise.resolve(onComplete(traits))
+    } finally {
+      submittingRef.current = false
+      setIsSubmitting(false)
+    }
   }
 
   return (
     <AnimatePresence>
       <motion.div
-        className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50"
+        className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-md"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
       >
+        {/* Glow nền */}
+        <div
+          className="pointer-events-none absolute inset-0 opacity-60 blur-3xl"
+          style={{
+            background:
+              'radial-gradient(circle at 0% 0%, rgba(236,72,153,0.45), transparent 55%), radial-gradient(circle at 100% 100%, rgba(129,140,248,0.6), transparent 55%)'
+          }}
+        />
+
         <motion.div
-          className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 relative"
-          initial={{ scale: 0.9, y: 20 }}
-          animate={{ scale: 1, y: 0 }}
-          exit={{ scale: 0.9, y: 20 }}
+          className="
+            relative w-full max-w-md mx-4
+            rounded-3xl
+            bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950
+            border border-white/10
+            shadow-[0_20px_70px_rgba(0,0,0,0.85)]
+            p-6
+            text-slate-50
+          "
+          initial={{ scale: 0.9, y: 20, opacity: 0 }}
+          animate={{ scale: 1, y: 0, opacity: 1 }}
+          exit={{ scale: 0.9, y: 20, opacity: 0 }}
+          transition={{ type: 'spring', stiffness: 220, damping: 22 }}
         >
+          <div className="pointer-events-none absolute inset-px rounded-3xl border border-white/5" />
+
           {/* Nút đóng */}
           <button
             onClick={onCancel}
-            className="absolute top-3 right-4 text-gray-400 hover:text-gray-700 text-lg"
+            className="absolute top-3 right-4 text-slate-400 hover:text-slate-100 text-lg"
           >
-            ✖
+            ✕
           </button>
 
           {!finished ? (
             <>
-              <h2 className="text-xl font-bold text-pink-600 mb-2 text-center">
-                💘 Love Style Story
-              </h2>
-              <p className="text-xs text-gray-500 text-center mb-4">
-                Câu hỏi {stepIndex + 1} / {steps.length}
-              </p>
+              {/* Header nhỏ */}
+              <div className="text-center mb-3 mt-1 relative z-10">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-900/80 border border-pink-500/40 shadow-[0_0_18px_rgba(244,114,182,0.45)]">
+                  <span className="text-[11px]">💘</span>
+                  <span className="text-[10px] font-semibold tracking-[0.15em] uppercase text-pink-200">
+                    Love Style Story
+                  </span>
+                </div>
+                <p className="text-[11px] text-slate-400 mt-2">
+                  Câu hỏi{' '}
+                  <span className="text-pink-300 font-semibold">
+                    {stepIndex + 1}
+                  </span>{' '}
+                  / {steps.length}
+                </p>
+              </div>
 
-              <h3 className="font-semibold text-base mb-1 text-center">
-                {currentStep.title}
-              </h3>
-              <p className="text-sm text-gray-700 mb-4 text-center">
-                {currentStep.question}
-              </p>
+              {/* Câu hỏi */}
+              <div className="mb-4 text-center relative z-10">
+                <h3 className="font-semibold text-[15px] text-slate-50 mb-1">
+                  {currentStep.title}
+                </h3>
+                <p className="text-[12px] text-slate-300 leading-relaxed">
+                  {currentStep.question}
+                </p>
+                <p className="mt-2 text-[11px] text-slate-500">
+                  Chọn một đáp án để tự động sang câu tiếp theo ✨
+                </p>
+              </div>
 
-              <div className="flex flex-col gap-2 mb-5">
+              {/* Options */}
+              <div className="flex flex-col gap-2.5 mb-1 relative z-10">
                 {currentStep.options.map(opt => (
                   <button
                     key={opt.value}
                     onClick={() => handleSelect(currentStep.id, opt.value)}
-                    className={`w-full text-left px-4 py-3 rounded-xl border text-sm transition ${
-                      answers[currentStep.id] === opt.value
-                        ? 'bg-pink-50 border-pink-500 shadow-sm'
-                        : 'bg-gray-50 hover:bg-gray-100 border-gray-200'
-                    }`}
+                    className={`w-full text-left px-4 py-3 rounded-2xl border text-[13px] transition-all flex flex-col
+                      ${
+                        answers[currentStep.id] === opt.value
+                          ? 'bg-slate-900/90 border-pink-400/80 shadow-[0_0_22px_rgba(244,114,182,0.65)]'
+                          : 'bg-slate-900/70 border-slate-700/80 hover:border-pink-400/70 hover:bg-slate-900/90 hover:shadow-[0_0_18px_rgba(244,114,182,0.45)]'
+                      }`}
                   >
-                    <div className="font-semibold">{opt.label}</div>
-                    <div className="text-xs text-gray-600 mt-1">{opt.desc}</div>
+                    <div className="font-semibold text-slate-50">
+                      {opt.label}
+                    </div>
+                    {opt.desc && (
+                      <div className="text-[11px] text-slate-400 mt-1">
+                        {opt.desc}
+                      </div>
+                    )}
                   </button>
                 ))}
               </div>
-
-              <button
-                onClick={handleNext}
-                className="w-full bg-pink-500 text-white py-2 rounded-xl hover:bg-pink-600 transition text-sm font-semibold"
-              >
-                {stepIndex === steps.length - 1 ? 'Hoàn thành 🎯' : 'Tiếp tục ➜'}
-              </button>
             </>
           ) : (
-            <>
-              <h3 className="text-2xl font-bold text-green-600 mb-2 text-center">
-                🎉 Xong rồi!
+            <div className="text-center relative z-10 mt-2">
+              <div className="mx-auto mb-3 w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-400 via-pink-400 to-indigo-400 flex items=center justify-center shadow-[0_0_40px_rgba(52,211,153,0.7)]">
+                <span className="text-3xl">🎉</span>
+              </div>
+              <h3 className="text-lg font-semibold text-slate-50 mb-2">
+                Bạn đã hoàn thành Love Style Story!
               </h3>
-              <p className="text-gray-700 mb-4 text-center">
+              <p className="text-[12px] text-slate-300 mb-3">
                 Chúng tôi đã hiểu rõ hơn phong cách yêu của bạn.
-                {' '}
-                <br />
-                <span className="text-pink-600 font-bold text-xl">
-                  Love Style Score: {score}%
+              </p>
+              <p className="mb-4">
+                <span className="text-[11px] text-slate-400 block mb-1">
+                  Love Style Score
+                </span>
+                <span className="text-2xl font-bold bg-gradient-to-r from-pink-400 via-rose-300 to-indigo-300 bg-clip-text text-transparent drop-shadow">
+                  {score}%
                 </span>
               </p>
+
               <button
                 onClick={handleComplete}
-                className="w-full bg-pink-500 text-white py-2 rounded-xl hover:bg-pink-600 transition text-sm font-semibold"
+                disabled={isSubmitting}
+                className={`
+                  w-full
+                  bg-gradient-to-r from-pink-500 via-fuchsia-500 to-purple-500
+                  text-white py-2.5 rounded-2xl
+                  hover:shadow-[0_12px_32px_rgba(217,70,239,0.95)]
+                  hover:translate-y-0.5
+                  active:scale-95
+                  transition-all text-[13px] font-semibold
+                  ${isSubmitting ? 'opacity-60 cursor-not-allowed' : ''}
+                `}
               >
-                Xác nhận & lưu thông tin 💾
+                {isSubmitting
+                  ? 'Đang lưu thông tin...'
+                  : 'Xác nhận & lưu thông tin 💾'}
               </button>
-            </>
+
+              <p className="mt-3 text-[10px] text-slate-500">
+                Bạn có thể chơi lại mini game này trong tương lai.
+              </p>
+            </div>
           )}
         </motion.div>
+
+        {/* Audio elements */}
+        <audio ref={selectAudioRef} preload="auto">
+          <source src={selectSound} type="audio/mpeg" />
+        </audio>
+
+        <audio ref={completeAudioRef} preload="auto">
+          <source src={completeSound} type="audio/mpeg" />
+        </audio>
       </motion.div>
     </AnimatePresence>
   )
