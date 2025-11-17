@@ -5,51 +5,105 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
   const [step, setStep] = useState(0)
   const [answers, setAnswers] = useState({})
   const [finished, setFinished] = useState(false)
-  const [isSubmitting, setIsSubmitting] = useState(false) // chống double-click
+  const [isSubmitting, setIsSubmitting] = useState(false)
 
+  // 🧠 Bộ câu hỏi dạng "game", mỗi option có icon + title + mô tả
   const questions = [
     {
-      id: 1,
-      text: 'Bạn là người hướng nội hay hướng ngoại?',
-      subtitle: 'Chỉ mất 3 câu, hệ thống sẽ hiểu gu vibe của bạn hơn ✨',
+      id: 'personality',
+      traitKey: 'personality_type',
+      text: 'Chọn “vibe” của bạn trong đám đông 🔍',
+      subtitle: 'Nếu vào một buổi tiệc đông người, bạn sẽ là kiểu người nào?',
       options: [
-        { value: 'introvert', label: '🧘 Hướng nội, thích không gian riêng' },
-        { value: 'extrovert', label: '🎉 Hướng ngoại, mê chỗ đông vui' },
-        { value: 'ambivert', label: '⚖️ Cân bằng, tùy mood' }
+        {
+          value: 'introvert',
+          icon: '🧘',
+          title: 'Hướng nội chill',
+          desc: 'Thích góc yên tĩnh, nói chuyện 1-1, nạp năng lượng một mình.'
+        },
+        {
+          value: 'extrovert',
+          icon: '🎉',
+          title: 'Hướng ngoại nhiệt',
+          desc: 'Chủ động bắt chuyện, cực vui trong các group đông người.'
+        },
+        {
+          value: 'ambivert',
+          icon: '⚖️',
+          title: 'Linh hoạt tùy mood',
+          desc: 'Lúc cần chill vẫn chill, lúc cần quẩy vẫn quẩy cực sung.'
+        }
       ]
     },
     {
-      id: 2,
-      text: 'Trong tình yêu, bạn ưu tiên điều gì nhất?',
-      subtitle: 'Một mối quan hệ vững chắc luôn cần một điểm tựa chính.',
+      id: 'priority',
+      traitKey: 'love_priority',
+      text: 'Trong tình yêu, điều gì là “core” với bạn nhất? ❤️',
+      subtitle: 'Chọn yếu tố mà bạn không thể thiếu trong một mối quan hệ.',
       options: [
-        { value: 'trust', label: '🤝 Niềm tin & chân thành' },
-        { value: 'fun', label: '😂 Tiếng cười & niềm vui' },
-        { value: 'growth', label: '🌱 Cùng phát triển & nâng nhau lên' }
+        {
+          value: 'trust',
+          icon: '🤝',
+          title: 'Niềm tin & an toàn',
+          desc: 'Cần cảm giác được tôn trọng, chân thành và tin tưởng lẫn nhau.'
+        },
+        {
+          value: 'fun',
+          icon: '😂',
+          title: 'Niềm vui & tiếng cười',
+          desc: 'Một mối quan hệ phải vui, thoải mái, không quá nặng nề.'
+        },
+        {
+          value: 'growth',
+          icon: '🌱',
+          title: 'Cùng nhau phát triển',
+          desc: 'Muốn cả hai cùng tiến bộ, hỗ trợ nhau trên hành trình riêng.'
+        }
       ]
     },
     {
-      id: 3,
-      text: 'Bạn thích kiểu hẹn hò nào?',
-      subtitle: 'Một buổi hẹn hoàn hảo với bạn sẽ trông như thế nào?',
+      id: 'date_style',
+      traitKey: 'date_style',
+      text: 'Buổi hẹn hoàn hảo với bạn trông như thế nào? ✨',
+      subtitle: 'Hình dung một buổi hẹn đầu tiên thật đúng gu bạn.',
       options: [
-        { value: 'coffee', label: '☕ Ngồi cà phê tâm sự lâu thật lâu' },
-        { value: 'activity', label: '🏸 Cùng chơi một hoạt động / trò chơi' },
-        { value: 'walk', label: '🚶 Đi dạo, nói chuyện nhẹ nhàng' }
+        {
+          value: 'coffee',
+          icon: '☕',
+          title: 'Cà phê tâm sự',
+          desc: 'Ngồi nói chuyện thật lâu, tìm hiểu nhau qua từng câu chuyện.'
+        },
+        {
+          value: 'activity',
+          icon: '🏸',
+          title: 'Hoạt động / trò chơi',
+          desc: 'Làm gì đó cùng nhau: bowling, boardgame, workshop, v.v.'
+        },
+        {
+          value: 'walk',
+          icon: '🚶',
+          title: 'Đi dạo chill',
+          desc: 'Đi bộ, ngắm phố xá, nói chuyện nhẹ nhàng không áp lực.'
+        }
       ]
     }
   ]
 
   const totalSteps = questions.length
   const currentQuestion = questions[step]
+  const progressPercent = ((step + (finished ? 1 : 0)) / totalSteps) * 100
 
+  // chọn 1 option
   const handleSelect = (value) => {
-    setAnswers(prev => ({ ...prev, [step]: value }))
+    setAnswers(prev => ({
+      ...prev,
+      [currentQuestion.traitKey]: value
+    }))
   }
 
   const handleNext = () => {
-    if (!answers[step]) {
-      alert('Hãy chọn một đáp án nhé 💬')
+    if (!answers[currentQuestion.traitKey]) {
+      alert('Hãy chọn một đáp án trước khi tiếp tục nhé 💬')
       return
     }
     if (step < totalSteps - 1) {
@@ -63,10 +117,10 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
     if (isSubmitting) return
 
     const traits = {
-      personality_type: answers[0],
-      love_priority: answers[1],
-      date_style: answers[2],
-      intro_score: 80 // sau này bạn muốn tính phức tạp hơn thì sửa ở backend
+      personality_type: answers.personality_type,
+      love_priority: answers.love_priority,
+      date_style: answers.date_style,
+      intro_score: 80 // hoặc bạn có thể tính theo combo answers nếu muốn
     }
 
     try {
@@ -76,8 +130,6 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
       setIsSubmitting(false)
     }
   }
-
-  const progressPercent = ((step + (finished ? 1 : 0)) / totalSteps) * 100
 
   return (
     <motion.div
@@ -109,10 +161,9 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
         exit={{ scale: 0.9, opacity: 0, y: 10 }}
         transition={{ type: 'spring', stiffness: 220, damping: 22 }}
       >
-        {/* Viền sáng trên card */}
         <div className="pointer-events-none absolute inset-px rounded-3xl border border-white/5" />
 
-        {/* Header + nút close */}
+        {/* Header */}
         <div className="relative px-5 pt-4 pb-2 flex items-start justify-between">
           <div>
             <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-900/80 border border-pink-500/40 shadow-[0_0_18px_rgba(244,114,182,0.5)]">
@@ -125,7 +176,7 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
               Chào {name || 'bạn'} 💕
             </h2>
             <p className="mt-1 text-[11px] text-slate-300/80">
-              Một vài câu hỏi nhỏ để TinderFake hiểu bạn và gợi ý chuẩn gu hơn.
+              Một mini game nhỏ để TinderFake hiểu gu tình yêu & vibe của bạn hơn.
             </p>
           </div>
 
@@ -148,14 +199,18 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
           </button>
         </div>
 
-        {/* Thanh progress */}
+        {/* Progress */}
         <div className="relative px-5 pb-3">
           <div className="flex justify-between items-center mb-1">
             <p className="text-[11px] text-slate-400">
-              Câu hỏi <span className="font-semibold text-pink-300">{Math.min(step + 1, totalSteps)}</span> / {totalSteps}
+              Câu hỏi{' '}
+              <span className="font-semibold text-pink-300">
+                {Math.min(step + 1, totalSteps)}
+              </span>{' '}
+              / {totalSteps}
             </p>
             <p className="text-[10px] text-slate-400">
-              {finished ? 'Sẵn sàng lưu thông tin ✨' : 'Trả lời thật lòng nhé 💖'}
+              {finished ? 'Sẵn sàng lưu thông tin ✨' : 'Trả lời thật lòng nha 💖'}
             </p>
           </div>
           <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
@@ -191,7 +246,7 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
 
                 <div className="flex flex-col gap-2.5 mb-5">
                   {currentQuestion.options.map((opt) => {
-                    const isActive = answers[step] === opt.value
+                    const isActive = answers[currentQuestion.traitKey] === opt.value
                     return (
                       <button
                         key={opt.value}
@@ -199,10 +254,9 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
                         onClick={() => handleSelect(opt.value)}
                         className={`
                           w-full text-left px-3.5 py-2.5 rounded-2xl border
-                          text-[13px] leading-snug
-                          flex items-center gap-2
-                          transition-all
+                          flex items-center gap-3
                           shadow-[0_10px_25px_rgba(15,23,42,0.8)]
+                          transition-all
                           ${
                             isActive
                               ? 'border-pink-400/80 bg-slate-900/80 text-pink-50 shadow-[0_0_24px_rgba(244,114,182,0.7)]'
@@ -210,10 +264,17 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
                           }
                         `}
                       >
-                        <span className="text-lg">{opt.label.slice(0, 2)}</span>
-                        <span className="flex-1 text-[12px]">
-                          {opt.label.slice(2)}
-                        </span>
+                        <div className="flex items-center justify-center w-10 h-10 rounded-2xl bg-slate-800/90 border border-slate-600/70 text-2xl">
+                          {opt.icon}
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-[13px] font-semibold text-slate-50">
+                            {opt.title}
+                          </p>
+                          <p className="text-[11px] text-slate-400 mt-0.5">
+                            {opt.desc}
+                          </p>
+                        </div>
                       </button>
                     )
                   })}
@@ -255,7 +316,7 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
                   Tuyệt vời! Bạn đã hoàn thành mini game 🎉
                 </h3>
                 <p className="text-[11px] text-slate-300 mb-4 px-4">
-                  Chúng tôi sẽ dùng thông tin này để ưu tiên gợi ý những người có{" "}
+                  Chúng tôi sẽ dùng thông tin này để ưu tiên gợi ý những người có{' '}
                   <span className="text-pink-300 font-medium">vibe hợp với bạn</span> hơn.
                 </p>
 
@@ -280,7 +341,7 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
                 </button>
 
                 <p className="mt-3 text-[10px] text-slate-500">
-                  Bạn có thể thay đổi câu trả lời bất cứ lúc nào trong tương lai.
+                  Bạn có thể chơi lại & thay đổi câu trả lời trong tương lai.
                 </p>
               </motion.div>
             )}
