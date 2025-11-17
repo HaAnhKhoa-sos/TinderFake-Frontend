@@ -153,13 +153,13 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
       intro_score: 80
     }
 
+    setTimeout(async () => {
     try {
-      setIsSubmitting(true)
-      playSound('complete')
       await Promise.resolve(onComplete(traits))
     } finally {
       setIsSubmitting(false)
     }
+  }, 400)
   }
 
   return (
