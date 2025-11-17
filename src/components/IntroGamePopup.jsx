@@ -379,9 +379,31 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
       </motion.div>
 
       {/* 👇 3 audio element thực tế trong DOM */}
-      <audio ref={selectAudioRef} src="/sounds/select.mp3" preload="auto" />
-      <audio ref={nextAudioRef} src="/sounds/next.mp3" preload="auto" />
-      <audio ref={completeAudioRef} src="/sounds/complete.mp3" preload="auto" />
+<audio
+  ref={selectAudioRef}
+  preload="auto"
+  onError={() => console.log('Lỗi load select.mp3', selectAudioRef.current?.error)}
+>
+  <source src="https://interactive-examples.mdn.mozilla.net/media/cc0-audio/t-rex-roar.mp3" type="audio/mpeg" />
+</audio>
+
+<audio
+  ref={nextAudioRef}
+  preload="auto"
+  onError={() => console.log('Lỗi load next.mp3', nextAudioRef.current?.error)}
+>
+  <source src="/sounds/next.mp3" type="audio/mpeg" />
+</audio>
+
+<audio
+  ref={completeAudioRef}
+  preload="auto"
+  onError={() =>
+    console.log('Lỗi load complete.mp3', completeAudioRef.current?.error)
+  }
+>
+  <source src="/sounds/complete.mp3" type="audio/mpeg" />
+</audio>
     </motion.div>
   )
 }
