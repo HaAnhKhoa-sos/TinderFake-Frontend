@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useRef, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 
 export default function IntroGamePopup({ onComplete, onCancel, name }) {
@@ -7,7 +7,32 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
   const [finished, setFinished] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
 
-  // 🧠 Bộ câu hỏi dạng "game", mỗi option có icon + title + mô tả
+  // 🔊 refs âm thanh
+  const selectSoundRef = useRef(null)
+  const nextSoundRef = useRef(null)
+  const completeSoundRef = useRef(null)
+
+  useEffect(() => {
+    // các file này bạn đặt trong thư mục public/sounds
+    selectSoundRef.current = new Audio('/sounds/select.mp3')
+    nextSoundRef.current = new Audio('/sounds/next.mp3')
+    completeSoundRef.current = new Audio('/sounds/complete.mp3')
+  }, [])
+
+  const playSound = (ref) => {
+    try {
+      if (ref.current) {
+        // reset về đầu để click liên tục vẫn nghe rõ
+        ref.current.currentTime = 0
+        ref.current.play().catch(() => {})
+      }
+    } catch (e) {
+      // tránh crash nếu lỗi audio
+      console.warn('Audio play error:', e)
+    }
+  }
+
+  // 🧠 Bộ câu hỏi game
   const questions = [
     {
       id: 'personality',
@@ -93,12 +118,13 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
   const currentQuestion = questions[step]
   const progressPercent = ((step + (finished ? 1 : 0)) / totalSteps) * 100
 
-  // chọn 1 option
+  // 🔹 chọn 1 option
   const handleSelect = (value) => {
     setAnswers(prev => ({
       ...prev,
       [currentQuestion.traitKey]: value
     }))
+    playSound(selectSoundRef)
   }
 
   const handleNext = () => {
@@ -106,6 +132,8 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
       alert('Hãy chọn một đáp án trước khi tiếp tục nhé 💬')
       return
     }
+    playSound(nextSoundRef)
+
     if (step < totalSteps - 1) {
       setStep(step + 1)
     } else {
@@ -120,11 +148,12 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
       personality_type: answers.personality_type,
       love_priority: answers.love_priority,
       date_style: answers.date_style,
-      intro_score: 80 // hoặc bạn có thể tính theo combo answers nếu muốn
+      intro_score: 80
     }
 
     try {
       setIsSubmitting(true)
+      playSound(completeSoundRef)
       await Promise.resolve(onComplete(traits))
     } finally {
       setIsSubmitting(false)
@@ -246,7 +275,8 @@ export default function IntroGamePopup({ onComplete, onCancel, name }) {
 
                 <div className="flex flex-col gap-2.5 mb-5">
                   {currentQuestion.options.map((opt) => {
-                    const isActive = answers[currentQuestion.traitKey] === opt.value
+                    const isActive =
+                      answers[currentQuestion.traitKey] === opt.value
                     return (
                       <button
                         key={opt.value}
